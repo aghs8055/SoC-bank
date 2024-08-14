@@ -34,11 +34,11 @@ def create_random_accounts(cnt=20000):
 
 
 def accounts_with_owner_name_and_balance():
-    return Account.objects.select_related("owner").values("owner__first_name", "owner__last_name", "balance")
+    return Account.objects.values("owner__first_name", "owner__last_name", "balance")
 
 
 def account_with_max_balance():
-    return Account.objects.order_by("-balance")[0]
+    return Account.objects.order_by("-balance").first()
 
 
 def five_accounts_with_min_balance():
@@ -48,16 +48,21 @@ def five_accounts_with_min_balance():
 def transfer_balance(from_account_id, to_account_id, amount):
     try:
         with transaction.atomic():
-            from_account = Account.objects.get(id=from_account_id)
-            to_account = Account.objects.get(id=to_account_id)
-            from_account.balance -= amount
-            to_account.balance += amount
+            from_account = Account.objects.select_for_update().get(id=from_account_id)
+            to_account = Account.objects.select_for_update().get(id=to_account_id)
+
+            if from_account.balance < amount:
+                raise ValueError("Insufficient funds")
+
+            from_account.balance = F("balance") - amount
+            to_account.balance = F("balance") + amount
+
             from_account.save()
             to_account.save()
             return True
-    except Exception:
-        pass
-    return False
+    except Exception as e:
+        print(f"Transaction failed: {e}")
+        return False
 
 
 def accounts_with_id_greater_than_balance():
@@ -65,9 +70,7 @@ def accounts_with_id_greater_than_balance():
 
 
 def accounts_with_national_id_greater_than_balance():
-    return Account.objects.annotate(national_id_integer=Cast("owner__national_id", BigIntegerField())).filter(
-        national_id_integer__gt=F("balance")
-    )
+    return Account.objects.filter(balance__lt=Cast("owner__national_id", BigIntegerField()))
 
 
 def accounts_with_balance_greater_than_2000000_or_less_than_1000000():
