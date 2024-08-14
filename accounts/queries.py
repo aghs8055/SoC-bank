@@ -34,11 +34,11 @@ def create_random_accounts(cnt=20000):
 
 
 def accounts_with_owner_name_and_balance():
-    return Account.objects.select_related("owner").values("owner__first_name", "owner__last_name", "balance")
+    return Account.objects.values("owner__first_name", "owner__last_name", "balance")
 
 
 def account_with_max_balance():
-    return Account.objects.order_by("-balance")[0]
+    return Account.objects.order_by("-balance").first()
 
 
 def five_accounts_with_min_balance():
@@ -65,9 +65,7 @@ def accounts_with_id_greater_than_balance():
 
 
 def accounts_with_national_id_greater_than_balance():
-    return Account.objects.annotate(national_id_integer=Cast("owner__national_id", BigIntegerField())).filter(
-        national_id_integer__gt=F("balance")
-    )
+    return Account.objects.filter(balance__lt=Cast("owner__national_id", BigIntegerField()))
 
 
 def accounts_with_balance_greater_than_2000000_or_less_than_1000000():
